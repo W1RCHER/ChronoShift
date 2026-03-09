@@ -17,6 +17,10 @@ class RuntimeLevel:
     enemy_list: arcade.SpriteList
     core_list: arcade.SpriteList
     exit_sprite: arcade.SpriteSolidColor
+    world_left: float
+    world_right: float
+    world_bottom: float
+    world_top: float
 
 
 class LevelManager:
@@ -33,6 +37,10 @@ class LevelManager:
         enemy_list = arcade.SpriteList()
         core_list = arcade.SpriteList()
 
+        left_edges: list[float] = []
+        right_edges: list[float] = []
+        top_edges: list[float] = []
+
         for block in level.platforms:
             platform = arcade.SpriteSolidColor(
                 width=block.width,
@@ -42,6 +50,10 @@ class LevelManager:
             platform.center_x = block.center_x
             platform.center_y = block.center_y
             platform_list.append(platform)
+
+            left_edges.append(block.center_x - block.width / 2)
+            right_edges.append(block.center_x + block.width / 2)
+            top_edges.append(block.center_y + block.height / 2)
 
         for enemy_data in level.enemies:
             enemy = Enemy(
@@ -68,6 +80,15 @@ class LevelManager:
         exit_sprite.center_x = level.exit_x
         exit_sprite.center_y = level.exit_y
 
+        left_edges.append(level.spawn_x)
+        right_edges.append(level.exit_x + EXIT_WIDTH / 2)
+        top_edges.append(level.exit_y + EXIT_HEIGHT / 2)
+
+        world_left = min(left_edges) - 100
+        world_right = max(right_edges) + 100
+        world_bottom = 0
+        world_top = max(top_edges) + 160
+
         return RuntimeLevel(
             title=level.title,
             spawn_x=level.spawn_x,
@@ -76,4 +97,8 @@ class LevelManager:
             enemy_list=enemy_list,
             core_list=core_list,
             exit_sprite=exit_sprite,
+            world_left=world_left,
+            world_right=world_right,
+            world_bottom=world_bottom,
+            world_top=world_top,
         )
