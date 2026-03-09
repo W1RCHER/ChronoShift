@@ -149,7 +149,6 @@ LEVELS: list[LevelDefinition] = [
             RectBlock(1900, 260, 200, 24, PLATFORM_COLOR),
             RectBlock(2220, 380, 200, 24, PLATFORM_COLOR),
             RectBlock(2550, 500, 220, 24, PLATFORM_COLOR),
-
             RectBlock(2840, 580, 220, 24, PLATFORM_COLOR),
             RectBlock(3120, 630, 220, 24, PLATFORM_COLOR),
             RectBlock(3380, 590, 220, 24, PLATFORM_COLOR),
@@ -186,6 +185,9 @@ LEVELS: list[LevelDefinition] = [
             RectBlock(2760, 550, 220, 24, PLATFORM_COLOR),
             RectBlock(3120, 670, 220, 24, PLATFORM_COLOR),
             RectBlock(3480, 550, 220, 24, PLATFORM_COLOR),
+
+            # Исправленный финальный участок
+            RectBlock(3720, 620, 200, 24, PLATFORM_COLOR),
             RectBlock(3880, 650, 180, 24, PLATFORM_COLOR),
         ],
         enemies=[
