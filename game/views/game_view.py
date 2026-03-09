@@ -1,6 +1,8 @@
 import arcade
 
 from game.config.settings import (
+    CAMERA_SPEED,
+    CAMERA_Y_OFFSET,
     COLOR_ACCENT,
     COLOR_BACKGROUND,
     COLOR_TEXT,
@@ -15,6 +17,7 @@ from game.managers.level_manager import LevelManager
 
 
 class GameView(arcade.View):
+    """Основной игровой экран."""
 
     def __init__(self) -> None:
         super().__init__()
@@ -34,9 +37,19 @@ class GameView(arcade.View):
         self.spawn_x = 100
         self.spawn_y = 180
 
+        self.camera: arcade.Camera2D | None = None
+
+        self.world_left = 0.0
+        self.world_right = float(SCREEN_WIDTH)
+        self.world_bottom = 0.0
+        self.world_top = float(SCREEN_HEIGHT)
+
     def on_show_view(self) -> None:
         arcade.set_background_color(COLOR_BACKGROUND)
-        self.load_level(self.window.game_state.current_level_index)
+
+        # Не перезагружаем уровень каждый раз при возврате из паузы
+        if self.player is None:
+            self.load_level(self.window.game_state.current_level_index)
 
     def load_level(self, level_index: int) -> None:
         runtime_level = self.level_manager.build_level(level_index)
@@ -50,16 +63,24 @@ class GameView(arcade.View):
         self.core_list = runtime_level.core_list
         self.exit_sprite = runtime_level.exit_sprite
 
+        self.world_left = runtime_level.world_left
+        self.world_right = runtime_level.world_right
+        self.world_bottom = runtime_level.world_bottom
+        self.world_top = runtime_level.world_top
+
         self.player = Player(self.spawn_x, self.spawn_y)
         self.window.game_state.player_health = self.player.health
+
+        self.left_pressed = False
+        self.right_pressed = False
 
         self.setup_camera()
         self.setup_particles()
         self.setup_physics()
 
     def setup_camera(self) -> None:
-        """Заготовка под камеру."""
-        pass
+        self.camera = arcade.Camera2D()
+        self.update_camera(snap=True)
 
     def setup_particles(self) -> None:
         """Заготовка под частицы."""
@@ -71,6 +92,9 @@ class GameView(arcade.View):
 
     def on_draw(self) -> None:
         self.clear()
+
+        if self.camera is not None:
+            self.camera.use()
 
         self.platform_list.draw()
         self.enemy_list.draw()
@@ -86,11 +110,12 @@ class GameView(arcade.View):
 
     def draw_hud(self) -> None:
         state = self.window.game_state
+        camera_left, camera_bottom = self.get_camera_view_origin()
 
         arcade.draw_text(
             self.current_level_title,
-            HUD_MARGIN,
-            SCREEN_HEIGHT - HUD_MARGIN - 10,
+            camera_left + HUD_MARGIN,
+            camera_bottom + SCREEN_HEIGHT - HUD_MARGIN - 10,
             COLOR_ACCENT,
             20,
             bold=True,
@@ -98,32 +123,40 @@ class GameView(arcade.View):
 
         arcade.draw_text(
             f"Очки: {state.score}",
-            HUD_MARGIN,
-            SCREEN_HEIGHT - HUD_MARGIN - 40,
+            camera_left + HUD_MARGIN,
+            camera_bottom + SCREEN_HEIGHT - HUD_MARGIN - 40,
             COLOR_TEXT,
             16,
         )
 
         arcade.draw_text(
             f"Ядра: {state.collected_cores}",
-            HUD_MARGIN,
-            SCREEN_HEIGHT - HUD_MARGIN - 65,
+            camera_left + HUD_MARGIN,
+            camera_bottom + SCREEN_HEIGHT - HUD_MARGIN - 65,
             COLOR_TEXT,
             16,
         )
 
         arcade.draw_text(
             f"HP: {state.player_health}",
-            HUD_MARGIN,
-            SCREEN_HEIGHT - HUD_MARGIN - 90,
+            camera_left + HUD_MARGIN,
+            camera_bottom + SCREEN_HEIGHT - HUD_MARGIN - 90,
             COLOR_TEXT,
             16,
         )
 
         arcade.draw_text(
             f"Время: {state.elapsed_time:.1f}",
-            SCREEN_WIDTH - 170,
-            SCREEN_HEIGHT - HUD_MARGIN - 10,
+            camera_left + SCREEN_WIDTH - 170,
+            camera_bottom + SCREEN_HEIGHT - HUD_MARGIN - 10,
+            COLOR_TEXT,
+            16,
+        )
+
+        arcade.draw_text(
+            f"Уровень: {state.current_level_index + 1}/{self.level_manager.get_level_count()}",
+            camera_left + SCREEN_WIDTH - 220,
+            camera_bottom + SCREEN_HEIGHT - HUD_MARGIN - 35,
             COLOR_TEXT,
             16,
         )
@@ -131,8 +164,8 @@ class GameView(arcade.View):
         if len(self.core_list) > 0:
             arcade.draw_text(
                 "Соберите все ядра, чтобы открыть выход",
-                SCREEN_WIDTH / 2,
-                SCREEN_HEIGHT - 35,
+                camera_left + SCREEN_WIDTH / 2,
+                camera_bottom + SCREEN_HEIGHT - 35,
                 COLOR_TEXT,
                 16,
                 anchor_x="center",
@@ -140,8 +173,8 @@ class GameView(arcade.View):
         else:
             arcade.draw_text(
                 "Выход открыт",
-                SCREEN_WIDTH / 2,
-                SCREEN_HEIGHT - 35,
+                camera_left + SCREEN_WIDTH / 2,
+                camera_bottom + SCREEN_HEIGHT - 35,
                 COLOR_ACCENT,
                 16,
                 anchor_x="center",
@@ -271,6 +304,7 @@ class GameView(arcade.View):
         self.window.game_state.deaths += 1
         self.player.respawn(self.spawn_x, self.spawn_y, full_heal=full_reset)
         self.window.game_state.player_health = self.player.health
+        self.update_camera(snap=True)
 
     def complete_level(self) -> None:
         self.window.game_state.current_level_index += 1
@@ -299,13 +333,59 @@ class GameView(arcade.View):
 
         self.window.show_view(ResultView(self.window.game_state))
 
-    def update_camera(self) -> None:
-        """Заготовка под камеру."""
-        pass
+    def update_camera(self, snap: bool = False) -> None:
+        if self.player is None or self.camera is None:
+            return
+
+        target_x = self.player.center_x
+        target_y = self.player.center_y + CAMERA_Y_OFFSET
+
+        half_width = SCREEN_WIDTH / 2
+        half_height = SCREEN_HEIGHT / 2
+
+        min_x = self.world_left + half_width
+        max_x = self.world_right - half_width
+
+        min_y = self.world_bottom + half_height
+        max_y = self.world_top - half_height
+
+        if min_x > max_x:
+            target_x = (self.world_left + self.world_right) / 2
+        else:
+            target_x = self.clamp(target_x, min_x, max_x)
+
+        if min_y > max_y:
+            target_y = (self.world_bottom + self.world_top) / 2
+        else:
+            target_y = self.clamp(target_y, min_y, max_y)
+
+        target_position = (target_x, target_y)
+
+        if snap:
+            self.camera.position = target_position
+        else:
+            self.camera.position = arcade.math.lerp_2d(
+                self.camera.position,
+                target_position,
+                CAMERA_SPEED,
+            )
 
     def update_particles(self) -> None:
         """Заготовка под частицы."""
         pass
+
+    def get_camera_view_origin(self) -> tuple[float, float]:
+        if self.camera is None:
+            return 0.0, 0.0
+
+        return (
+            self.camera.position[0] - SCREEN_WIDTH / 2,
+            self.camera.position[1] - SCREEN_HEIGHT / 2,
+        )
+
+    @staticmethod
+    def clamp(value: float, minimum: float, maximum: float) -> float:
+        return max(minimum, min(value, maximum))
 
     def on_key_press(self, symbol: int, modifiers: int) -> None:
         if self.player is None:
