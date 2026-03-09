@@ -24,6 +24,8 @@ class RuntimeLevel:
 
 
 class LevelManager:
+    """Создание игровых объектов уровня на основе описания."""
+
     def __init__(self) -> None:
         self.levels = LEVELS
 
@@ -84,8 +86,8 @@ class LevelManager:
         right_edges.append(level.exit_x + EXIT_WIDTH / 2)
         top_edges.append(level.exit_y + EXIT_HEIGHT / 2)
 
-        world_left = min(left_edges) - 100
-        world_right = max(right_edges) + 100
+        world_left = min(left_edges)
+        world_right = max(right_edges)
         world_bottom = 0
         world_top = max(top_edges) + 160
 
