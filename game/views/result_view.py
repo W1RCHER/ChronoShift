@@ -12,15 +12,26 @@ from game.core.game_state import GameState
 
 
 class ResultView(arcade.View):
+    """Финальный экран."""
+
     def __init__(self, state: GameState) -> None:
         super().__init__()
         self.state = state
+        self.ui_camera: arcade.Camera2D | None = None
 
     def on_show_view(self) -> None:
         arcade.set_background_color(COLOR_BACKGROUND)
 
+        if self.ui_camera is None:
+            self.ui_camera = arcade.Camera2D()
+
+        self.ui_camera.position = (SCREEN_WIDTH / 2, SCREEN_HEIGHT / 2)
+
     def on_draw(self) -> None:
         self.clear()
+
+        if self.ui_camera is not None:
+            self.ui_camera.use()
 
         title = "ПОБЕДА" if self.state.is_victory else "ПОРАЖЕНИЕ"
         title_color = COLOR_SUCCESS if self.state.is_victory else (255, 100, 100)
