@@ -15,6 +15,7 @@ from game.managers.level_manager import LevelManager
 
 
 class GameView(arcade.View):
+
     def __init__(self) -> None:
         super().__init__()
 
@@ -76,10 +77,10 @@ class GameView(arcade.View):
         self.core_list.draw()
 
         if self.exit_sprite is not None:
-            self.exit_sprite.draw()
+            arcade.draw_sprite(self.exit_sprite)
 
         if self.player is not None:
-            self.player.draw()
+            arcade.draw_sprite(self.player)
 
         self.draw_hud()
 
