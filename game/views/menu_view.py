@@ -10,11 +10,25 @@ from game.config.settings import (
 
 
 class MenuView(arcade.View):
+    """Стартовый экран."""
+
+    def __init__(self) -> None:
+        super().__init__()
+        self.ui_camera: arcade.Camera2D | None = None
+
     def on_show_view(self) -> None:
         arcade.set_background_color(COLOR_BACKGROUND)
 
+        if self.ui_camera is None:
+            self.ui_camera = arcade.Camera2D()
+
+        self.ui_camera.position = (SCREEN_WIDTH / 2, SCREEN_HEIGHT / 2)
+
     def on_draw(self) -> None:
         self.clear()
+
+        if self.ui_camera is not None:
+            self.ui_camera.use()
 
         arcade.draw_text(
             "ChronoShift",
