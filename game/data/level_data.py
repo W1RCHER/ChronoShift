@@ -109,13 +109,9 @@ LEVELS: list[LevelDefinition] = [
         exit_y=530,
         platforms=[
             RectBlock(1600, 60, 3200, 40, PLATFORM_COLOR),
-
-            # Исправленный старт уровня — удобная лесенка
             RectBlock(360, 150, 180, 24, PLATFORM_COLOR),
             RectBlock(610, 220, 180, 24, PLATFORM_COLOR),
             RectBlock(860, 290, 200, 24, PLATFORM_COLOR),
-
-            # Основная часть уровня
             RectBlock(1140, 360, 220, 24, PLATFORM_COLOR),
             RectBlock(1450, 440, 220, 24, PLATFORM_COLOR),
             RectBlock(1770, 360, 220, 24, PLATFORM_COLOR),
@@ -153,8 +149,10 @@ LEVELS: list[LevelDefinition] = [
             RectBlock(1900, 260, 200, 24, PLATFORM_COLOR),
             RectBlock(2220, 380, 200, 24, PLATFORM_COLOR),
             RectBlock(2550, 500, 220, 24, PLATFORM_COLOR),
-            RectBlock(2880, 620, 220, 24, PLATFORM_COLOR),
-            RectBlock(3360, 590, 180, 24, PLATFORM_COLOR),
+
+            RectBlock(2840, 580, 220, 24, PLATFORM_COLOR),
+            RectBlock(3120, 630, 220, 24, PLATFORM_COLOR),
+            RectBlock(3380, 590, 220, 24, PLATFORM_COLOR),
         ],
         enemies=[
             EnemySpawn(560, 110, 260, 840, 2.5),
@@ -167,7 +165,7 @@ LEVELS: list[LevelDefinition] = [
             CoreSpawn(1260, 550),
             CoreSpawn(1900, 310),
             CoreSpawn(2550, 550),
-            CoreSpawn(2880, 670),
+            CoreSpawn(3120, 680),
         ],
     ),
     LevelDefinition(
