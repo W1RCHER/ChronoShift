@@ -6,6 +6,11 @@ from game.config.settings import (
     COLOR_ACCENT,
     COLOR_BACKGROUND,
     COLOR_TEXT,
+    CORE_SCORE_AT_1_HP,
+    CORE_SCORE_AT_2_HP,
+    CORE_SCORE_AT_3_HP,
+    FLIGHT_ASCEND_SPEED,
+    FLIGHT_DURATION,
     GRAVITY,
     HUD_MARGIN,
     SCREEN_HEIGHT,
@@ -32,6 +37,8 @@ class GameView(arcade.View):
 
         self.left_pressed = False
         self.right_pressed = False
+        self.up_pressed = False
+        self.shift_pressed = False
 
         self.current_level_title = ""
         self.spawn_x = 100
@@ -44,10 +51,12 @@ class GameView(arcade.View):
         self.world_bottom = 0.0
         self.world_top = float(SCREEN_HEIGHT)
 
+        self.flight_active = False
+        self.flight_time_left = 0.0
+
     def on_show_view(self) -> None:
         arcade.set_background_color(COLOR_BACKGROUND)
 
-        # Не перезагружаем уровень каждый раз при возврате из паузы
         if self.player is None:
             self.load_level(self.window.game_state.current_level_index)
 
@@ -69,10 +78,16 @@ class GameView(arcade.View):
         self.world_top = runtime_level.world_top
 
         self.player = Player(self.spawn_x, self.spawn_y)
+        self.player.health = self.window.game_state.player_health
         self.window.game_state.player_health = self.player.health
 
         self.left_pressed = False
         self.right_pressed = False
+        self.up_pressed = False
+        self.shift_pressed = False
+
+        self.flight_active = False
+        self.flight_time_left = 0.0
 
         self.setup_camera()
         self.setup_particles()
@@ -83,11 +98,9 @@ class GameView(arcade.View):
         self.update_camera(snap=True)
 
     def setup_particles(self) -> None:
-        """Заготовка под частицы."""
         pass
 
     def setup_physics(self) -> None:
-        """Заготовка под физический движок."""
         pass
 
     def on_draw(self) -> None:
@@ -146,6 +159,22 @@ class GameView(arcade.View):
         )
 
         arcade.draw_text(
+            f"Щиты: {state.shield_charges} {'(активен)' if state.shield_active else ''}",
+            camera_left + HUD_MARGIN,
+            camera_bottom + SCREEN_HEIGHT - HUD_MARGIN - 115,
+            COLOR_TEXT,
+            16,
+        )
+
+        arcade.draw_text(
+            f"Полет: {state.flight_charges}",
+            camera_left + HUD_MARGIN,
+            camera_bottom + SCREEN_HEIGHT - HUD_MARGIN - 140,
+            COLOR_TEXT,
+            16,
+        )
+
+        arcade.draw_text(
             f"Время: {state.elapsed_time:.1f}",
             camera_left + SCREEN_WIDTH - 170,
             camera_bottom + SCREEN_HEIGHT - HUD_MARGIN - 10,
@@ -161,11 +190,20 @@ class GameView(arcade.View):
             16,
         )
 
+        arcade.draw_text(
+            "Ctrl — активировать щит | Shift + Up — полет",
+            camera_left + SCREEN_WIDTH / 2,
+            camera_bottom + SCREEN_HEIGHT - 35,
+            COLOR_TEXT,
+            14,
+            anchor_x="center",
+        )
+
         if len(self.core_list) > 0:
             arcade.draw_text(
                 "Соберите все ядра, чтобы открыть выход",
                 camera_left + SCREEN_WIDTH / 2,
-                camera_bottom + SCREEN_HEIGHT - 35,
+                camera_bottom + SCREEN_HEIGHT - 60,
                 COLOR_TEXT,
                 16,
                 anchor_x="center",
@@ -174,7 +212,7 @@ class GameView(arcade.View):
             arcade.draw_text(
                 "Выход открыт",
                 camera_left + SCREEN_WIDTH / 2,
-                camera_bottom + SCREEN_HEIGHT - 35,
+                camera_bottom + SCREEN_HEIGHT - 60,
                 COLOR_ACCENT,
                 16,
                 anchor_x="center",
@@ -188,6 +226,7 @@ class GameView(arcade.View):
         self.window.game_state.elapsed_time += delta_time
 
         self.apply_input()
+        self.update_flight(delta_time)
         self.apply_gravity()
         self.move_player_x()
         self.move_player_y()
@@ -214,8 +253,28 @@ class GameView(arcade.View):
         else:
             self.player.stop_horizontal()
 
+    def update_flight(self, delta_time: float) -> None:
+        if self.player is None:
+            return
+
+        if self.flight_active:
+            self.flight_time_left -= delta_time
+
+            if self.flight_time_left <= 0:
+                self.flight_active = False
+                self.flight_time_left = 0.0
+                return
+
+            if self.shift_pressed and self.up_pressed:
+                self.player.change_y = FLIGHT_ASCEND_SPEED
+            else:
+                self.player.change_y = 0
+
     def apply_gravity(self) -> None:
         if self.player is None:
+            return
+
+        if self.flight_active:
             return
 
         self.player.change_y -= GRAVITY * self.player.gravity_scale
@@ -255,15 +314,55 @@ class GameView(arcade.View):
         for enemy in self.enemy_list:
             enemy.update_enemy()
 
+    def get_core_value_by_health(self) -> int:
+        if self.player is None:
+            return CORE_SCORE_AT_1_HP
+
+        if self.player.health >= 3:
+            return CORE_SCORE_AT_3_HP
+        if self.player.health == 2:
+            return CORE_SCORE_AT_2_HP
+        return CORE_SCORE_AT_1_HP
+
     def process_collectibles(self) -> None:
         if self.player is None:
             return
 
         collected = arcade.check_for_collision_with_list(self.player, self.core_list)
         for core in collected:
-            self.window.game_state.score += core.collect()
+            core.collect()
+            self.window.game_state.score += self.get_core_value_by_health()
             self.window.game_state.collected_cores += 1
             self.window.audio_manager.play_pickup()
+
+    def activate_shield(self) -> None:
+        state = self.window.game_state
+
+        if state.shield_charges > 0 and not state.shield_active:
+            state.shield_active = True
+
+    def consume_shield(self) -> None:
+        state = self.window.game_state
+
+        if state.shield_active and state.shield_charges > 0:
+            state.shield_charges -= 1
+            state.shield_active = False
+
+    def try_start_flight(self) -> None:
+        state = self.window.game_state
+
+        if self.flight_active:
+            return
+
+        if state.flight_charges <= 0:
+            return
+
+        state.flight_charges -= 1
+        self.flight_active = True
+        self.flight_time_left = FLIGHT_DURATION
+
+        if self.player is not None:
+            self.player.change_y = FLIGHT_ASCEND_SPEED
 
     def process_enemy_collisions(self) -> None:
         if self.player is None:
@@ -271,14 +370,26 @@ class GameView(arcade.View):
 
         hit_list = arcade.check_for_collision_with_list(self.player, self.enemy_list)
 
-        if hit_list:
-            self.window.audio_manager.play_damage()
-            self.player.take_damage(1)
+        if not hit_list:
+            return
 
-            if self.player.health <= 0:
-                self.respawn_player(full_reset=True)
-            else:
-                self.respawn_player(full_reset=False)
+        state = self.window.game_state
+
+        if state.shield_active and state.shield_charges > 0:
+            self.consume_shield()
+            self.respawn_player(damage=False)
+            return
+
+        self.window.audio_manager.play_damage()
+        self.player.take_damage(1)
+        state.player_health = self.player.health
+
+        if self.player.health <= 0:
+            state.player_health = 0
+            self.finish_game(victory=False)
+            return
+
+        self.respawn_player(damage=True)
 
     def process_level_exit(self) -> None:
         if self.player is None or self.exit_sprite is None:
@@ -295,25 +406,33 @@ class GameView(arcade.View):
             return
 
         if self.player.top < WORLD_BOTTOM_DEATH_Y:
-            self.respawn_player(full_reset=False)
+            self.respawn_player(damage=False)
 
-    def respawn_player(self, full_reset: bool) -> None:
+    def respawn_player(self, damage: bool) -> None:
         if self.player is None:
             return
 
-        self.window.game_state.deaths += 1
-        self.player.respawn(self.spawn_x, self.spawn_y, full_heal=full_reset)
+        if damage:
+            self.window.game_state.deaths += 1
+
+        self.player.respawn(self.spawn_x, self.spawn_y, full_heal=False)
         self.window.game_state.player_health = self.player.health
+
+        self.flight_active = False
+        self.flight_time_left = 0.0
+
         self.update_camera(snap=True)
 
     def complete_level(self) -> None:
+        from game.views.shop_view import ShopView
+
         self.window.game_state.current_level_index += 1
 
         if self.window.game_state.current_level_index >= self.level_manager.get_level_count():
             self.finish_game(victory=True)
             return
 
-        self.load_level(self.window.game_state.current_level_index)
+        self.window.show_view(ShopView())
 
     def finish_game(self, victory: bool) -> None:
         from game.views.result_view import ResultView
@@ -371,7 +490,6 @@ class GameView(arcade.View):
             )
 
     def update_particles(self) -> None:
-        """Заготовка под частицы."""
         pass
 
     def get_camera_view_origin(self) -> tuple[float, float]:
@@ -397,8 +515,25 @@ class GameView(arcade.View):
         elif symbol in (arcade.key.D, arcade.key.RIGHT):
             self.right_pressed = True
 
-        elif symbol in (arcade.key.W, arcade.key.UP, arcade.key.SPACE):
-            self.player.jump()
+        elif symbol in (arcade.key.W, arcade.key.UP):
+            self.up_pressed = True
+
+            if self.shift_pressed:
+                self.try_start_flight()
+            else:
+                self.player.jump()
+
+        elif symbol == arcade.key.SPACE:
+            if self.shift_pressed:
+                self.try_start_flight()
+            else:
+                self.player.jump()
+
+        elif symbol in (arcade.key.LSHIFT, arcade.key.RSHIFT):
+            self.shift_pressed = True
+
+        elif symbol in (arcade.key.LCTRL, arcade.key.RCTRL):
+            self.activate_shield()
 
         elif symbol == arcade.key.ESCAPE:
             from game.views.pause_view import PauseView
@@ -411,3 +546,9 @@ class GameView(arcade.View):
 
         elif symbol in (arcade.key.D, arcade.key.RIGHT):
             self.right_pressed = False
+
+        elif symbol in (arcade.key.W, arcade.key.UP):
+            self.up_pressed = False
+
+        elif symbol in (arcade.key.LSHIFT, arcade.key.RSHIFT):
+            self.shift_pressed = False
