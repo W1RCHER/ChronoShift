@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 
-from game.config.settings import MAX_PLAYER_HEALTH
+from game.config.settings import MAX_PLAYER_HEALTH, MAX_STAMINA
 
 
 @dataclass
@@ -19,6 +19,9 @@ class GameState:
 
     flight_charges: int = 0
 
+    current_stamina: float = MAX_STAMINA
+    max_stamina: float = MAX_STAMINA
+
     is_victory: bool = False
     is_finished: bool = False
 
@@ -35,6 +38,9 @@ class GameState:
         self.shield_charges = 0
         self.shield_active = False
         self.flight_charges = 0
+
+        self.current_stamina = MAX_STAMINA
+        self.max_stamina = MAX_STAMINA
 
         self.is_victory = False
         self.is_finished = False
