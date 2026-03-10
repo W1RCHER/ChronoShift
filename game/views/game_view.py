@@ -13,8 +13,11 @@ from game.config.settings import (
     FLIGHT_DURATION,
     GRAVITY,
     HUD_MARGIN,
+    RUN_KEY_HINT,
     SCREEN_HEIGHT,
     SCREEN_WIDTH,
+    STAMINA_DRAIN_PER_SECOND,
+    STAMINA_RECOVERY_PER_SECOND,
     WORLD_BOTTOM_DEATH_Y,
 )
 from game.entities.player import Player
@@ -39,6 +42,7 @@ class GameView(arcade.View):
         self.right_pressed = False
         self.up_pressed = False
         self.shift_pressed = False
+        self.run_pressed = False
 
         self.current_level_title = ""
         self.spawn_x = 100
@@ -85,6 +89,7 @@ class GameView(arcade.View):
         self.right_pressed = False
         self.up_pressed = False
         self.shift_pressed = False
+        self.run_pressed = False
 
         self.flight_active = False
         self.flight_time_left = 0.0
@@ -175,6 +180,14 @@ class GameView(arcade.View):
         )
 
         arcade.draw_text(
+            f"Выносливость: {int(state.current_stamina)}/{int(state.max_stamina)}",
+            camera_left + HUD_MARGIN,
+            camera_bottom + SCREEN_HEIGHT - HUD_MARGIN - 165,
+            COLOR_TEXT,
+            16,
+        )
+
+        arcade.draw_text(
             f"Время: {state.elapsed_time:.1f}",
             camera_left + SCREEN_WIDTH - 170,
             camera_bottom + SCREEN_HEIGHT - HUD_MARGIN - 10,
@@ -191,7 +204,7 @@ class GameView(arcade.View):
         )
 
         arcade.draw_text(
-            "Ctrl — активировать щит | Shift + Up — полет",
+            f"Ctrl — щит | Shift + Up — полет | {RUN_KEY_HINT} — бег",
             camera_left + SCREEN_WIDTH / 2,
             camera_bottom + SCREEN_HEIGHT - 35,
             COLOR_TEXT,
@@ -225,6 +238,7 @@ class GameView(arcade.View):
 
         self.window.game_state.elapsed_time += delta_time
 
+        self.update_stamina(delta_time)
         self.apply_input()
         self.update_flight(delta_time)
         self.apply_gravity()
@@ -242,14 +256,42 @@ class GameView(arcade.View):
         self.update_camera()
         self.update_particles()
 
+    def is_trying_to_move_horizontally(self) -> bool:
+        return (self.left_pressed and not self.right_pressed) or (
+            self.right_pressed and not self.left_pressed
+        )
+
+    def can_run_now(self) -> bool:
+        state = self.window.game_state
+
+        return (
+            self.player is not None
+            and self.player.on_ground
+            and self.is_trying_to_move_horizontally()
+            and self.run_pressed
+            and state.current_stamina > 0
+        )
+
+    def update_stamina(self, delta_time: float) -> None:
+        state = self.window.game_state
+
+        if self.can_run_now():
+            state.current_stamina -= STAMINA_DRAIN_PER_SECOND * delta_time
+        else:
+            state.current_stamina += STAMINA_RECOVERY_PER_SECOND * delta_time
+
+        state.current_stamina = max(0.0, min(state.current_stamina, state.max_stamina))
+
     def apply_input(self) -> None:
         if self.player is None:
             return
 
+        running_now = self.can_run_now()
+
         if self.left_pressed and not self.right_pressed:
-            self.player.move_left()
+            self.player.move_left(run=running_now)
         elif self.right_pressed and not self.left_pressed:
-            self.player.move_right()
+            self.player.move_right(run=running_now)
         else:
             self.player.stop_horizontal()
 
@@ -535,6 +577,9 @@ class GameView(arcade.View):
         elif symbol in (arcade.key.LCTRL, arcade.key.RCTRL):
             self.activate_shield()
 
+        elif symbol == arcade.key.B:
+            self.run_pressed = True
+
         elif symbol == arcade.key.ESCAPE:
             from game.views.pause_view import PauseView
 
@@ -552,3 +597,6 @@ class GameView(arcade.View):
 
         elif symbol in (arcade.key.LSHIFT, arcade.key.RSHIFT):
             self.shift_pressed = False
+
+        elif symbol == arcade.key.B:
+            self.run_pressed = False
