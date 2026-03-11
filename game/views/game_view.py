@@ -252,7 +252,8 @@ class GameView(arcade.View):
         self.check_fall_out_of_world()
 
         self.window.game_state.player_health = self.player.health
-        self.player.update_animation_state()
+        self.player.set_flight_state(self.flight_active)
+        self.player.update_animation_state(delta_time)
         self.update_camera()
         self.update_particles()
 
