@@ -18,6 +18,8 @@ from game.config.settings import (
 
 
 class Player(arcade.Sprite):
+    """Главный герой со спрайтовой анимацией."""
+
     def __init__(self, center_x: float, center_y: float) -> None:
         super().__init__(scale=PLAYER_TEXTURE_SCALE)
 
@@ -92,7 +94,7 @@ class Player(arcade.Sprite):
     def _load_single(self, filename: str) -> tuple[arcade.Texture, arcade.Texture]:
         path = self._texture_path(filename)
         right = arcade.load_texture(str(path))
-        left = arcade.load_texture(str(path), flipped_horizontally=True)
+        left = right.flip_left_right()
         return right, left
 
     def _load_sequence(self, filenames: list[str]) -> tuple[list[arcade.Texture], list[arcade.Texture]]:
