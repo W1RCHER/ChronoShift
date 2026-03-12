@@ -245,7 +245,7 @@ class GameView(arcade.View):
         self.move_player_x()
         self.move_player_y()
 
-        self.update_enemies()
+        self.update_enemies(delta_time)
         self.process_collectibles()
         self.process_enemy_collisions()
         self.process_level_exit()
@@ -353,9 +353,9 @@ class GameView(arcade.View):
 
             self.player.change_y = 0
 
-    def update_enemies(self) -> None:
+    def update_enemies(self, delta_time: float) -> None:
         for enemy in self.enemy_list:
-            enemy.update_enemy()
+            enemy.update_enemy(self.player, delta_time)
 
     def get_core_value_by_health(self) -> int:
         if self.player is None:
