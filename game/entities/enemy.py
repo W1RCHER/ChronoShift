@@ -49,6 +49,7 @@ class Enemy(arcade.Sprite):
                 f"enemy_{self.enemy_type}_walk_02.png",
                 f"enemy_{self.enemy_type}_walk_03.png",
                 f"enemy_{self.enemy_type}_walk_04.png",
+                f"enemy_{self.enemy_type}_walk_05.png",
             ]
         )
 
@@ -57,6 +58,8 @@ class Enemy(arcade.Sprite):
                 f"enemy_{self.enemy_type}_attack_01.png",
                 f"enemy_{self.enemy_type}_attack_02.png",
                 f"enemy_{self.enemy_type}_attack_03.png",
+                f"enemy_{self.enemy_type}_attack_04.png",
+                f"enemy_{self.enemy_type}_attack_05.png",
             ]
         )
 
