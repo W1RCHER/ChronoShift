@@ -2,7 +2,7 @@ from dataclasses import dataclass
 
 import arcade
 
-from game.config.settings import COLOR_EXIT, EXIT_HEIGHT, EXIT_WIDTH
+from game.config.settings import EXIT_HEIGHT, EXIT_WIDTH, PLATFORM_TEXTURE_PATH, PORTAL_TEXTURE_PATH
 from game.data.level_data import LEVELS
 from game.entities.collectible import EnergyCore
 from game.entities.enemy import Enemy
@@ -16,7 +16,7 @@ class RuntimeLevel:
     platform_list: arcade.SpriteList
     enemy_list: arcade.SpriteList
     core_list: arcade.SpriteList
-    exit_sprite: arcade.SpriteSolidColor
+    exit_sprite: arcade.Sprite
     world_left: float
     world_right: float
     world_bottom: float
@@ -24,8 +24,6 @@ class RuntimeLevel:
 
 
 class LevelManager:
-    """Создание игровых объектов уровня на основе описания."""
-
     def __init__(self) -> None:
         self.levels = LEVELS
 
@@ -44,13 +42,14 @@ class LevelManager:
         top_edges: list[float] = []
 
         for block in level.platforms:
-            platform = arcade.SpriteSolidColor(
-                width=block.width,
-                height=block.height,
-                color=block.color,
-            )
+            platform = arcade.Sprite(str(PLATFORM_TEXTURE_PATH))
+
+            visual_height = max(int(block.height * 2.0), 52)
             platform.center_x = block.center_x
-            platform.center_y = block.center_y
+            platform.center_y = block.center_y - (visual_height - block.height) / 2
+            platform.width = block.width
+            platform.height = visual_height
+
             platform_list.append(platform)
 
             left_edges.append(block.center_x - block.width / 2)
@@ -74,13 +73,11 @@ class LevelManager:
             )
             core_list.append(core)
 
-        exit_sprite = arcade.SpriteSolidColor(
-            width=EXIT_WIDTH,
-            height=EXIT_HEIGHT,
-            color=COLOR_EXIT,
-        )
+        exit_sprite = arcade.Sprite(str(PORTAL_TEXTURE_PATH))
         exit_sprite.center_x = level.exit_x
         exit_sprite.center_y = level.exit_y
+        exit_sprite.width = EXIT_WIDTH
+        exit_sprite.height = EXIT_HEIGHT
 
         left_edges.append(level.spawn_x)
         right_edges.append(level.exit_x + EXIT_WIDTH / 2)

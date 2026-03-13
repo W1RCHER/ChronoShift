@@ -13,6 +13,7 @@ from game.config.settings import (
     FLIGHT_DURATION,
     GRAVITY,
     HUD_MARGIN,
+    MAP_BACKGROUND_PATH,
     RUN_KEY_HINT,
     SCREEN_HEIGHT,
     SCREEN_WIDTH,
@@ -34,7 +35,7 @@ class GameView(arcade.View):
         self.platform_list = arcade.SpriteList()
         self.enemy_list = arcade.SpriteList()
         self.core_list = arcade.SpriteList()
-        self.exit_sprite: arcade.SpriteSolidColor | None = None
+        self.exit_sprite: arcade.Sprite | None = None
 
         self.left_pressed = False
         self.right_pressed = False
@@ -47,6 +48,8 @@ class GameView(arcade.View):
         self.spawn_y = 180
 
         self.camera: arcade.Camera2D | None = None
+        self.ui_camera: arcade.Camera2D | None = None
+        self.background_sprite: arcade.Sprite | None = None
 
         self.world_left = 0.0
         self.world_right = float(SCREEN_WIDTH)
@@ -55,6 +58,18 @@ class GameView(arcade.View):
 
         self.flight_active = False
         self.flight_time_left = 0.0
+
+        self.setup_ui_layer()
+
+    def setup_ui_layer(self) -> None:
+        self.ui_camera = arcade.Camera2D()
+        self.ui_camera.position = (SCREEN_WIDTH / 2, SCREEN_HEIGHT / 2)
+
+        self.background_sprite = arcade.Sprite(str(MAP_BACKGROUND_PATH))
+        self.background_sprite.center_x = SCREEN_WIDTH / 2
+        self.background_sprite.center_y = SCREEN_HEIGHT / 2
+        self.background_sprite.width = SCREEN_WIDTH
+        self.background_sprite.height = SCREEN_HEIGHT
 
     def on_show_view(self) -> None:
         arcade.set_background_color(COLOR_BACKGROUND)
@@ -108,6 +123,12 @@ class GameView(arcade.View):
 
     def on_draw(self) -> None:
         self.clear()
+
+        if self.ui_camera is not None:
+            self.ui_camera.use()
+
+        if self.background_sprite is not None:
+            arcade.draw_sprite(self.background_sprite)
 
         if self.camera is not None:
             self.camera.use()
