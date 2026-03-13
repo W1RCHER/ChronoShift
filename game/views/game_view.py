@@ -25,8 +25,6 @@ from game.managers.level_manager import LevelManager
 
 
 class GameView(arcade.View):
-    """Основной игровой экран."""
-
     def __init__(self) -> None:
         super().__init__()
 
@@ -246,6 +244,7 @@ class GameView(arcade.View):
         self.move_player_y()
 
         self.update_enemies(delta_time)
+        self.update_collectibles(delta_time)
         self.process_collectibles()
         self.process_enemy_collisions()
         self.process_level_exit()
@@ -256,6 +255,10 @@ class GameView(arcade.View):
         self.player.update_animation_state(delta_time)
         self.update_camera()
         self.update_particles()
+
+    def update_collectibles(self, delta_time: float) -> None:
+        for core in self.core_list:
+            core.update(delta_time)
 
     def is_trying_to_move_horizontally(self) -> bool:
         return (self.left_pressed and not self.right_pressed) or (
